@@ -40,7 +40,9 @@ watch(
       <div class="chat-title" :title="store.currentSummary()?.title">
         {{ store.currentSummary()?.title ?? '新会话' }}
       </div>
-      <div v-if="store.sending" class="chat-status">生成中...</div>
+      <div v-if="store.sending" class="chat-status">
+        {{ store.status === 'connecting' ? '连接中...' : '生成中...' }}
+      </div>
     </header>
     <div ref="listEl" class="chat-list">
       <div v-if="!store.currentMessages().length" class="chat-empty">

@@ -2,12 +2,14 @@
 import { onMounted, ref } from 'vue'
 import { useChatStore } from '@/stores/chat'
 import { useSettingsStore } from '@/stores/settings'
+import { useUiStore } from '@/stores/ui'
 import TabBar from '@/components/TabBar.vue'
 import ChatWindow from '@/components/ChatWindow.vue'
 import SettingsPanel from '@/components/SettingsPanel.vue'
 
 const chat = useChatStore()
 const settings = useSettingsStore()
+const ui = useUiStore()
 const settingsOpen = ref(false)
 
 onMounted(async () => {
@@ -27,6 +29,16 @@ onMounted(async () => {
       <ChatWindow />
     </main>
     <SettingsPanel v-if="settingsOpen" @close="settingsOpen = false" />
+    <div class="toast-container">
+      <div
+        v-for="t in ui.toasts"
+        :key="t.id"
+        class="toast"
+        :class="`toast--${t.type}`"
+      >
+        {{ t.text }}
+      </div>
+    </div>
   </div>
 </template>
 

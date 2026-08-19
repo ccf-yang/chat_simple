@@ -1,6 +1,13 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import type { WebContents } from 'electron'
-import type { ChatDeltaEvent, ChatDoneEvent, ChatErrorEvent, ChatSettings, ChatMessage } from '@shared/types'
+import type {
+  ChatDeltaEvent,
+  ChatDoneEvent,
+  ChatErrorEvent,
+  ChatStatusEvent,
+  ChatSettings,
+  ChatMessage
+} from '@shared/types'
 import {
   buildChatCompletionsUrl,
   buildChatPayload,
@@ -8,12 +15,12 @@ import {
   toErrorMessage
 } from '@shared/chat'
 
-const REQUEST_TIMEOUT_MS = 180_000
+const REQUEST_TIMEOUT_MS = 60_000
 
 function sendToWebContents(
   contents: WebContents,
-  channel: 'chat:delta' | 'chat:done' | 'chat:error',
-  payload: ChatDeltaEvent | ChatDoneEvent | ChatErrorEvent
+  channel: 'chat:delta' | 'chat:done' | 'chat:error' | 'chat:status',
+  payload: ChatDeltaEvent | ChatDoneEvent | ChatErrorEvent | ChatStatusEvent
 ): void {
   if (!contents.isDestroyed()) {
     contents.send(channel, payload)
@@ -30,6 +37,7 @@ async function handleStream(
     sendToWebContents(contents, 'chat:error', { sessionId, message: '响应体为空，无法读取流' })
     return
   }
+  sendToWebContents(contents, 'chat:status', { sessionId, state: 'streaming' })
   const decoder = new TextDecoder()
   let buffer = ''
   let full = ''
@@ -94,6 +102,7 @@ export function registerChatProxy(): void {
       if (settings.apiKey) {
         headers['Authorization'] = `Bearer ${settings.apiKey}`
       }
+      sendToWebContents(contents, 'chat:status', { sessionId, state: 'connecting' })
       const response = await fetch(url, {
         method: 'POST',
         headers,
@@ -113,6 +122,7 @@ export function registerChatProxy(): void {
       if (settings.stream) {
         await handleStream(contents, response, sessionId)
       } else {
+        sendToWebContents(contents, 'chat:status', { sessionId, state: 'streaming' })
         const json = (await response.json()) as {
           choices?: Array<{ message?: { content?: string } }>
           model?: string
@@ -125,13 +135,17 @@ export function registerChatProxy(): void {
         })
       }
     } catch (err) {
-      const message =
-        err instanceof Error && err.name === 'AbortError'
-          ? '请求超时，请检查网络或接口响应速度'
-          : err instanceof Error
-            ? `请求失败：${err.message}`
-            : '请求失败，请检查网络连接'
-      sendToWebContents(contents, 'chat:error', { sessionId, message })
+      let detail: string
+      if (err instanceof Error && err.name === 'AbortError') {
+        detail = '请求超时，请检查网络或接口响应速度'
+      } else if (err instanceof Error) {
+        const cause = (err as { cause?: unknown }).cause
+        const causeMsg = cause instanceof Error ? cause.message : null
+        detail = causeMsg ? `请求失败：${causeMsg}` : `请求失败：${err.message}`
+      } else {
+        detail = '请求失败，请检查网络连接'
+      }
+      sendToWebContents(contents, 'chat:error', { sessionId, message: detail })
     } finally {
       clearTimeout(timer)
     }

@@ -4,6 +4,7 @@ import type {
   ChatDeltaEvent,
   ChatDoneEvent,
   ChatErrorEvent,
+  ChatStatusEvent,
   ChatMessage,
   ChatSettings,
   ChatSession,
@@ -19,6 +20,7 @@ interface ChatApi {
   onDelta(cb: (event: ChatDeltaEvent) => void): () => void
   onDone(cb: (event: ChatDoneEvent) => void): () => void
   onError(cb: (event: ChatErrorEvent) => void): () => void
+  onStatus(cb: (event: ChatStatusEvent) => void): () => void
 }
 
 const api = {
@@ -79,6 +81,11 @@ const api = {
       const listener = (_e: IpcRendererEvent, event: ChatErrorEvent): void => cb(event)
       ipcRenderer.on('chat:error', listener)
       return () => ipcRenderer.removeListener('chat:error', listener)
+    },
+    onStatus(cb: (event: ChatStatusEvent) => void): () => void {
+      const listener = (_e: IpcRendererEvent, event: ChatStatusEvent): void => cb(event)
+      ipcRenderer.on('chat:status', listener)
+      return () => ipcRenderer.removeListener('chat:status', listener)
     }
   }
 }

@@ -51,6 +51,11 @@ export interface ChatErrorEvent {
   message: string
 }
 
+export interface ChatStatusEvent {
+  sessionId: string
+  state: 'connecting' | 'streaming'
+}
+
 export interface SendChatRequest {
   sessionId: string
   messages: ChatMessage[]

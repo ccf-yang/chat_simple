@@ -3,12 +3,16 @@ import { ref } from 'vue'
 import type { ChatMessage, SessionSummary } from '@shared/types'
 import { createId } from '@shared/chat'
 import { useSettingsStore } from './settings'
+import { useUiStore } from './ui'
+
+export type ChatRequestStatus = 'idle' | 'connecting' | 'streaming'
 
 export const useChatStore = defineStore('chat', () => {
   const summaries = ref<SessionSummary[]>([])
   const currentId = ref<string | null>(null)
   const messages = ref(new Map<string, ChatMessage[]>())
   const sending = ref(false)
+  const status = ref<ChatRequestStatus>('idle')
   const sendingSessionId = ref<string | null>(null)
   let registered = false
 
@@ -56,6 +60,7 @@ export const useChatStore = defineStore('chat', () => {
     if (sending.value && sendingSessionId.value === id) {
       sending.value = false
       sendingSessionId.value = null
+      status.value = 'idle'
     }
     await window.api.sessions.remove(id)
     summaries.value = summaries.value.filter((s) => s.id !== id)
@@ -74,10 +79,25 @@ export const useChatStore = defineStore('chat', () => {
     if (index !== -1) summaries.value[index] = summary
   }
 
+  function resetRequestState(sessionId: string): void {
+    if (sendingSessionId.value === sessionId) {
+      sending.value = false
+      sendingSessionId.value = null
+      status.value = 'idle'
+    }
+  }
+
   async function sendMessage(content: string): Promise<void> {
     if (!currentId.value || sending.value) return
     const sessionId = currentId.value
     const list = messages.value.get(sessionId) ?? []
+    const settingsStore = useSettingsStore()
+    const uiStore = useUiStore()
+
+    if (!settingsStore.settings.baseUrl.trim()) {
+      uiStore.toast('请先在设置中配置 Base URL', 'error')
+      return
+    }
 
     const userMsg: ChatMessage = {
       id: createId('msg'),
@@ -100,9 +120,9 @@ export const useChatStore = defineStore('chat', () => {
     if (s2) syncSummary(s2)
 
     sending.value = true
+    status.value = 'connecting'
     sendingSessionId.value = sessionId
 
-    const settingsStore = useSettingsStore()
     await window.api.chat.send({
       sessionId,
       messages: list,
@@ -120,23 +140,27 @@ export const useChatStore = defineStore('chat', () => {
       }
     })
 
+    window.api.chat.onStatus(({ sessionId, state }) => {
+      if (sendingSessionId.value === sessionId) {
+        status.value = state
+      }
+    })
+
     window.api.chat.onDone(async ({ sessionId, content, model }) => {
       const list = messages.value.get(sessionId)
       const last = list?.[list.length - 1]
+      resetRequestState(sessionId)
       if (last && last.role === 'assistant') {
         last.content = content
         last.model = model
         await window.api.sessions.updateMessage(sessionId, last.id, { content, model })
-      }
-      if (sendingSessionId.value === sessionId) {
-        sending.value = false
-        sendingSessionId.value = null
       }
     })
 
     window.api.chat.onError(async ({ sessionId, message }) => {
       const list = messages.value.get(sessionId)
       const last = list?.[list.length - 1]
+      resetRequestState(sessionId)
       if (last && last.role === 'assistant') {
         last.content = message
         last.error = true
@@ -145,10 +169,6 @@ export const useChatStore = defineStore('chat', () => {
           error: true
         })
       }
-      if (sendingSessionId.value === sessionId) {
-        sending.value = false
-        sendingSessionId.value = null
-      }
     })
   }
 
@@ -156,6 +176,7 @@ export const useChatStore = defineStore('chat', () => {
     summaries,
     currentId,
     sending,
+    status,
     sendingSessionId,
     currentMessages,
     currentSummary,

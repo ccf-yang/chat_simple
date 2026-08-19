@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { onMounted, reactive } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
+import { useUiStore } from '@/stores/ui'
 import type { ChatSettings } from '@shared/types'
 import { DEFAULT_SETTINGS } from '@shared/types'
 
 const emit = defineEmits<{ close: [] }>()
 
 const store = useSettingsStore()
+const ui = useUiStore()
 const form = reactive<ChatSettings>({ ...DEFAULT_SETTINGS })
 
 onMounted(async () => {
@@ -15,9 +17,18 @@ onMounted(async () => {
 })
 
 async function save(): Promise<void> {
-  store.settings = { ...form }
-  await store.persist()
-  emit('close')
+  if (!form.baseUrl.trim()) {
+    ui.toast('请填写 Base URL', 'error')
+    return
+  }
+  try {
+    store.settings = { ...form }
+    await store.persist()
+    ui.toast('设置已保存', 'success')
+    emit('close')
+  } catch (err) {
+    ui.toast(`保存失败：${err instanceof Error ? err.message : String(err)}`, 'error')
+  }
 }
 </script>
 
