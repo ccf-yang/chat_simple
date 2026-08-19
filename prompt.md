@@ -1,6 +1,6 @@
 # Electron + Vue 3 桌面应用开发提示词
 
-```markdown
+
 # 角色定义
 你是一个资深的 Electron 桌面应用开发专家，精通 Electron、Vue 3、TypeScript、Pinia、Vite 和 electron-builder。请帮我创建一个完整的桌面应用项目。
 
@@ -18,7 +18,7 @@
 - **目标平台**: Windows (可打包为 exe)
 
 # 项目结构要求
-```
+
 src/
 ├── main/                    # 主进程
 │   ├── index.ts             # 应用入口，窗口创建
@@ -45,7 +45,7 @@ src/
             ├── [store1].ts
             ├── [store2].ts
             └── ui.ts        # UI 状态
-```
+
 
 # 核心要求
 
@@ -117,7 +117,7 @@ npm run build:win    # 打包 Windows exe
 4. 代码注释清晰
 5. 遵循最佳实践
 6. 确保可以成功打包为 exe
-```
+
 
 ---
 
@@ -125,7 +125,7 @@ npm run build:win    # 打包 Windows exe
 
 ### 示例 1：创建一个笔记应用
 
-```markdown
+
 # 角色定义
 你是一个资深的 Electron 桌面应用开发专家...
 
@@ -148,7 +148,7 @@ npm run build:win    # 打包 Windows exe
 
 # 需要生成的模块
 [列出所有需要的文件]
-```
+
 
 ### 示例 2：创建一个任务管理应用
 
